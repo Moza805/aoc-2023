@@ -21,14 +21,15 @@ const rotate = (universe, direction = "right") => {
   return rotatedMatrix;
 };
 
-const expand = (universe) => {
-  for (let i = universe.length; i >= 1; i--) {
-    if (universe[i - 1].every((x) => x === ".")) {
-      universe.splice(i, 0, universe[i - 1]);
+const getExpansions = (universe) => {
+  let factors = [];
+  for (let i = universe.length - 1; i >= 0; i--) {
+    if (universe[i].every((x) => x === ".")) {
+      factors.push(i);
     }
   }
 
-  return universe;
+  return factors;
 };
 
 const findGalaxyCoords = (universe) =>
@@ -41,6 +42,40 @@ const findGalaxyCoords = (universe) =>
     return aggregate;
   }, []);
 
+const calculate = (universe, expansionRate) => {
+  const rowExpansions = getExpansions(universe);
+  const colExpansions = getExpansions(rotate(universe));
+
+  const galaxies = findGalaxyCoords(universe);
+
+  return galaxies
+    .reduce((distances, galaxy, idx) => {
+      for (let i = idx + 1; i < galaxies.length; i++) {
+        const a = galaxy;
+        const b = galaxies[i];
+
+        const minRow = a[1] < b[1] ? a[1] : b[1];
+        const maxRow = a[1] > b[1] ? a[1] : b[1];
+        const minCol = a[0] < b[0] ? a[0] : b[0];
+        const maxCol = a[0] > b[0] ? a[0] : b[0];
+
+        const rowExpansion = rowExpansions
+          .filter((x) => x >= minCol && x <= maxCol)
+          .reduce((sum) => (sum += expansionRate - 1), 0);
+        const colExpansion = colExpansions
+          .filter((x) => x >= minRow && x <= maxRow)
+          .reduce((sum) => (sum += expansionRate - 1), 0);
+
+        const rowDiff = Math.abs(galaxy[0] - galaxies[i][0]) + rowExpansion;
+        const colDiff = Math.abs(galaxy[1] - galaxies[i][1]) + colExpansion;
+
+        distances.push(rowDiff + colDiff);
+      }
+
+      return distances;
+    }, [])
+    .reduce((sum, distance) => (sum += distance), 0);
+};
 /*------------------------------------*/
 
 let universe = fs
@@ -48,22 +83,5 @@ let universe = fs
   .split(/\r?\n/)
   .map((row) => row.split(""));
 
-universe = expand(universe);
-universe = rotate(universe);
-universe = expand(universe);
-
-const galaxies = findGalaxyCoords(universe);
-
-const distance = galaxies
-  .reduce((distances, galaxy, idx) => {
-    for (let i = idx + 1; i < galaxies.length; i++) {
-      const xDiff = Math.abs(galaxy[0] - galaxies[i][0]);
-      const yDiff = Math.abs(galaxy[1] - galaxies[i][1]);
-      distances.push(xDiff + yDiff);
-    }
-
-    return distances;
-  }, [])
-  .reduce((sum, distance) => (distance += sum), 0);
-
-console.log(distance);
+console.log("Part 1:", calculate(universe, 2));
+console.log("Part 2:", calculate(universe, 1000000));
