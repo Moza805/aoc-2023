@@ -49,7 +49,7 @@ const rotate = (grid, direction = "right") => {
 
 /*------------------------------------*/
 
-let patterns = fs
+const patterns = fs
   .readFileSync("./input.txt", "utf-8")
   .split(/\r?\n/)
   .reduce(
@@ -63,34 +63,90 @@ let patterns = fs
       return agg;
     },
     [[]]
-  )
-  .map((pattern) => {
-    let reflections = pattern.map(findReflections);
-    reflections = reflections.reduce(summarize);
-
-    if (reflections.length === 1) {
-      return { point: reflections[0], dir: "row" };
-    }
-
-    pattern = rotate(
-      pattern.map((row) => row.split("")),
-      "left"
-    ).map((row) => row.join(""));
-
-    reflections = pattern.map(findReflections);
-    reflections = reflections.reduce(summarize);
-
-    if (reflections.length > 1) {
-      throw new Error("Multiple reflections");
-    }
-    return { point: reflections[0], dir: "col" };
-  });
+  );
 
 console.log(
   "Part 1:",
-  patterns.reduce(
-    (agg, curr) =>
-      curr.dir === "row" ? (agg += curr.point) : (agg += curr.point * 100),
-    0
-  )
+  patterns
+    .map((pattern) => {
+      const reflection = { point: undefined, dir: "row" };
+      let reflections = pattern.map(findReflections);
+      reflections = reflections.reduce(summarize);
+
+      if (reflections.length === 1) {
+        reflection.point = reflections[0];
+      }
+
+      pattern = rotate(
+        pattern.map((row) => row.split("")),
+        "left"
+      ).map((row) => row.join(""));
+
+      reflections = pattern.map(findReflections);
+      reflections = reflections.reduce(summarize);
+
+      if (reflections.length > 1) {
+        throw new Error("Multiple reflections");
+      }
+
+      if (reflections.length === 1) {
+        reflection.point = reflections[0];
+        reflection.dir = "col";
+      }
+
+      return reflection;
+    })
+    .reduce(
+      (agg, curr) =>
+        curr.dir === "row" ? (agg += curr.point) : (agg += curr.point * 100),
+      0
+    )
+);
+
+console.log(
+  "Part 2:",
+  patterns
+    .map((pattern) => {
+      let reflections = pattern.flatMap(findReflections);
+      const reflection = { point: undefined, dir: "row" };
+
+      let counts = reflections.reduce((agg, curr) => {
+        agg[curr] = !!agg[curr] ? (agg[curr] += 1) : 1;
+        return agg;
+      }, {});
+
+      let x = Object.entries(counts).filter(
+        ([_, v]) => v === pattern.length - 1
+      );
+
+      if (!x.length) {
+        reflection.dir = "col";
+        pattern = rotate(
+          pattern.map((row) => row.split("")),
+          "left"
+        ).map((row) => row.join(""));
+
+        reflections = pattern.flatMap(findReflections);
+
+        counts = reflections.reduce((agg, curr) => {
+          agg[curr] = !!agg[curr] ? (agg[curr] += 1) : 1;
+          return agg;
+        }, {});
+
+        x = Object.entries(counts).filter(([_, v]) => v === pattern.length - 1);
+      }
+
+      if (!x.length) {
+        throw new Error("No smudges");
+      }
+
+      reflection.point = +x.map(([k]) => k)[0];
+
+      return reflection;
+    })
+    .reduce(
+      (agg, curr) =>
+        curr.dir === "row" ? (agg += curr.point) : (agg += curr.point * 100),
+      0
+    )
 );
