@@ -1,27 +1,30 @@
 import fs from "fs";
 
-const findReflections = (row, rId) => {
-  const reflections = []
+const getHalves = (row, index) => {
+  const left = row.substring(0, index).split("").reverse().join("");
+  const right = row.substring(index, index + left.length);
 
-  for (let i = 0; i < row.length; i++) {
-    const l2rLeft = row.substring(0, i).split('').reverse().join('')
-    const l2rRight = row.substring(i, i + l2rLeft.length)
+  return [left, right];
+};
 
-    const r2l = row.split('').reverse().join('')
+const summarize = (agg, curr) => agg.filter((a) => curr.includes(a));
 
+const findReflections = (row) => {
+  const reflections = [];
 
-    const r2lLeft = r2l.substring(0, i).split('').reverse().join('')
-    const r2lRight = r2l.substring(i, i + r2lLeft.length)
+  for (let i = 0; i < Math.ceil(row.length / 2); i++) {
+    const [l2rLeft, l2rRight] = getHalves(row, i);
+    const [r2lLeft, r2lRight] = getHalves(row.split("").reverse().join(""), i);
 
-    if ((l2rLeft === l2rRight && !!l2rLeft.length)) {
-      reflections.push(i)
+    if (l2rLeft === l2rRight && !!l2rLeft.length) {
+      reflections.push(i);
     }
-    if ((r2lLeft === r2lRight && !!r2lLeft.length)) {
-      reflections.push(row.length - i - 1)
+    if (r2lLeft === r2lRight && !!r2lLeft.length) {
+      reflections.push(row.length - i);
     }
   }
-  return reflections
-}
+  return reflections;
+};
 
 // Probably not efficient but had this at hand from 2022
 const rotate = (grid, direction = "right") => {
@@ -46,37 +49,104 @@ const rotate = (grid, direction = "right") => {
 
 /*------------------------------------*/
 
-let patterns = fs
+const patterns = fs
   .readFileSync("./input.txt", "utf-8")
   .split(/\r?\n/)
-  .reduce((agg, curr) => {
-    if (!curr.length) {
-      agg.push([]);
+  .reduce(
+    (agg, curr) => {
+      if (!curr.length) {
+        agg.push([]);
+        return agg;
+      }
+
+      agg[agg.length - 1].push(curr);
       return agg;
-    }
+    },
+    [[]]
+  );
 
-    agg[agg.length - 1].push(curr)
-    return agg;
-  }, [[]])
-  .map((pattern) => {
-    const rowReflections = pattern.map(findReflections)
-      .reduce((agg, curr) => agg.filter((a) => curr.includes(a)))
+console.log(
+  "Part 1:",
+  patterns
+    .map((pattern) => {
+      const reflection = { point: undefined, dir: "row" };
+      let reflections = pattern.map(findReflections);
+      reflections = reflections.reduce(summarize);
 
-    if (rowReflections.length === 1) {
-      return rowReflections[0]
-    }
+      if (reflections.length === 1) {
+        reflection.point = reflections[0];
+      }
 
-    let rotated = pattern.map((row) => row.split(''));
-    rotated = rotate(rotated);
-    rotated =rotated.map(row => row.join(''));
+      pattern = rotate(
+        pattern.map((row) => row.split("")),
+        "left"
+      ).map((row) => row.join(""));
 
-    const colReflections = rotated.map(findReflections)
-      .reduce((agg, curr) => agg.filter((a) => curr.includes(a)))
+      reflections = pattern.map(findReflections);
+      reflections = reflections.reduce(summarize);
 
-    if (colReflections.length > 1) {
-      throw new Error('Multiple reflections')
-    }
-    return colReflections[0]
-  });
+      if (reflections.length > 1) {
+        throw new Error("Multiple reflections");
+      }
 
-console.log(patterns);
+      if (reflections.length === 1) {
+        reflection.point = reflections[0];
+        reflection.dir = "col";
+      }
+
+      return reflection;
+    })
+    .reduce(
+      (agg, curr) =>
+        curr.dir === "row" ? (agg += curr.point) : (agg += curr.point * 100),
+      0
+    )
+);
+
+console.log(
+  "Part 2:",
+  patterns
+    .map((pattern) => {
+      let reflections = pattern.flatMap(findReflections);
+      const reflection = { point: undefined, dir: "row" };
+
+      let counts = reflections.reduce((agg, curr) => {
+        agg[curr] = !!agg[curr] ? (agg[curr] += 1) : 1;
+        return agg;
+      }, {});
+
+      let x = Object.entries(counts).filter(
+        ([_, v]) => v === pattern.length - 1
+      );
+
+      if (!x.length) {
+        reflection.dir = "col";
+        pattern = rotate(
+          pattern.map((row) => row.split("")),
+          "left"
+        ).map((row) => row.join(""));
+
+        reflections = pattern.flatMap(findReflections);
+
+        counts = reflections.reduce((agg, curr) => {
+          agg[curr] = !!agg[curr] ? (agg[curr] += 1) : 1;
+          return agg;
+        }, {});
+
+        x = Object.entries(counts).filter(([_, v]) => v === pattern.length - 1);
+      }
+
+      if (!x.length) {
+        throw new Error("No smudges");
+      }
+
+      reflection.point = +x.map(([k]) => k)[0];
+
+      return reflection;
+    })
+    .reduce(
+      (agg, curr) =>
+        curr.dir === "row" ? (agg += curr.point) : (agg += curr.point * 100),
+      0
+    )
+);
