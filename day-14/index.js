@@ -30,7 +30,7 @@ let plate = fs
 
 plate = rotate(plate, "left");
 
-console.log(plate);
+let tally = 0;
 
 for (const row of plate) {
   const newRow = [...row];
@@ -57,5 +57,11 @@ for (const row of plate) {
     }
   }
 
-  console.log(row, newRow);
+  for (const index in newRow) {
+    if (newRow[index] === "O") {
+      tally += newRow.length - index;
+    }
+  }
 }
+
+console.log(tally);
